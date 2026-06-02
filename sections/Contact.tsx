@@ -1,32 +1,26 @@
-import { Instagram, Linkedin, Mail } from "lucide-react";
-
 const links = [
-  { label: "Instagram", href: "#", icon: Instagram },
-  { label: "Email", href: "mailto:hello@example.com", icon: Mail },
-  { label: "LinkedIn", href: "#", icon: Linkedin }
+  { label: "Phone: 9972941109", href: "tel:9972941109" },
+  { label: "Instagram: @saakshisunil", href: "https://instagram.com/saakshisunil" },
+  { label: "LinkedIn: https://www.linkedin.com/in/saakshi-sunil-a73114220/", href: "https://www.linkedin.com/in/saakshi-sunil-a73114220/" }
 ];
 
 export function Contact() {
   return (
-    <section className="section-padding bg-ink text-bone">
-      <div className="mx-auto max-w-7xl">
-        <p className="font-sans text-[0.65rem] uppercase tracking-archive text-white/40">Contact</p>
-        <h2 className="mt-8 max-w-5xl font-editorial text-[clamp(4rem,13vw,13rem)] uppercase leading-[0.82]">
-          Let&apos;s create something.
-        </h2>
-        <div className="mt-14 flex flex-wrap gap-4">
-          {links.map(({ label, href, icon: Icon }) => (
-            <a
-              key={label}
-              href={href}
-              className="inline-flex items-center gap-3 border border-white/18 px-5 py-4 font-sans text-xs uppercase tracking-archive text-white/72 transition hover:bg-bone hover:text-ink"
-            >
-              <Icon size={16} />
-              {label}
+    <section id="contact" className="contact-foil grain relative flex min-h-[70vh] flex-col items-center justify-center overflow-hidden px-6 py-28 text-center">
+      <div className="absolute inset-0 bg-[#f1f0ea]/48" />
+      <p className="relative z-10 mb-8 font-display text-[0.52rem] uppercase tracking-[0.32em] text-ink/70">04 - Get in Touch</p>
+      <h2 className="relative z-10 mb-16 font-editorial text-[clamp(3.2rem,8vw,7.2rem)] italic leading-none text-ink">
+        Let&apos;s create something.
+      </h2>
+      <ul className="relative z-10 flex flex-wrap justify-center gap-10">
+        {links.map((link) => (
+          <li key={link.label}>
+            <a href={link.href} className="border-b border-transparent pb-1 font-display text-[0.58rem] uppercase tracking-[0.22em] text-ink/75 transition hover:border-ink/35 hover:text-ink">
+              {link.label}
             </a>
-          ))}
-        </div>
-      </div>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

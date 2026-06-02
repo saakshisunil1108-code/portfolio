@@ -1,6 +1,6 @@
 Current real assets copied into this folder:
 
-- chrome-reference.jfif
+- updated-hero-video.mp4
 - crossword.png
 - remembrance-archived-thesis.pdf
 - magazine-issue-01.pdf

@@ -1,10 +1,22 @@
-import Image from "next/image";
 import { SectionLabel } from "@/components/SectionLabel";
-import { assets } from "@/lib/assets";
+import { PortraitFrame } from "@/components/PortraitFrame";
+
+const indexCards = [
+  "MATERIAL STUDY",
+  "ARCHIVE",
+  "MEMORY",
+  "OBJECTS",
+  "TEXTILE",
+  "RESEARCH",
+  "IMAGE MAKING",
+  "PUBLICATION",
+  "STORYTELLING",
+  "RITUAL"
+];
 
 export function About() {
   return (
-    <section className="section-padding bg-bone">
+    <section id="about" className="paper-section section-padding">
       <div className="mx-auto grid max-w-7xl gap-12 md:grid-cols-[1fr_.82fr] md:gap-20">
         <div>
           <SectionLabel>About</SectionLabel>
@@ -21,20 +33,13 @@ export function About() {
           </div>
         </div>
         <div className="md:pt-20">
-          <div className="relative aspect-[4/5] overflow-hidden bg-smoke">
-            <Image src={assets.chrome} alt="Chrome material study" fill className="object-cover" />
-            <div className="absolute inset-0 bg-bone/15 mix-blend-screen" />
-            <p className="absolute bottom-6 left-6 max-w-[12rem] font-sans text-[0.62rem] uppercase leading-5 tracking-archive text-ink/55">
-              Portrait slot prepared for about-portrait.jpg
-            </p>
-          </div>
-          <div className="mt-5 flex items-end gap-4 border-t border-ink/15 pt-5">
-            <div className="grid aspect-[3/4] w-20 place-items-center bg-ink p-2 text-bone">
-              <span className="font-editorial text-sm uppercase leading-none">Issue 01</span>
-            </div>
-            <p className="max-w-xs font-sans text-xs uppercase leading-5 tracking-archive text-ink/50">
-              Magazine preview opens from the real PDF archive.
-            </p>
+          <PortraitFrame />
+          <div className="archive-index-cards mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {indexCards.map((card, index) => (
+              <span key={card} className="archive-index-card" style={{ animationDelay: `${index * 0.18}s` }}>
+                {card}
+              </span>
+            ))}
           </div>
         </div>
       </div>

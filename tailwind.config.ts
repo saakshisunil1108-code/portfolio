@@ -9,14 +9,15 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#070707",
-        bone: "#f6f5f1",
-        smoke: "#d9d8d3",
+        ink: "#1a1714",
+        bone: "#f6f3ef",
+        smoke: "#ede9e3",
         steel: "#8f9292",
         chrome: "#eceff0"
       },
       fontFamily: {
         editorial: ["var(--font-editorial)", "Georgia", "serif"],
+        display: ["var(--font-display)", "Georgia", "serif"],
         sans: ["var(--font-sans)", "Arial", "sans-serif"]
       },
       letterSpacing: {
