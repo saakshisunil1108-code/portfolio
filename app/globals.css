@@ -558,6 +558,17 @@ body::before {
   overflow: hidden;
 }
 
+.flipbook-page-loading {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.72), rgba(238, 232, 222, 0.9)),
+    #f6f3ef;
+  color: rgba(26, 23, 20, 0.34);
+  font-family: var(--font-display), serif;
+  font-size: 0.48rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
 .fluid-mask {
   clip-path: polygon(0 0, 100% 0, 100% 83%, 78% 88%, 62% 82%, 43% 89%, 22% 84%, 0 91%);
 }

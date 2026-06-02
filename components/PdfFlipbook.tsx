@@ -16,8 +16,14 @@ type PageImage = {
   height: number;
 };
 
-const flipbookPageCache = new Map<string, PageImage[]>();
-const flipbookRenderCache = new Map<string, Promise<PageImage[]>>();
+type PageSlot = PageImage | null;
+
+type FlipbookCacheEntry = {
+  pages: PageSlot[];
+  complete: boolean;
+};
+
+const flipbookPageCache = new Map<string, FlipbookCacheEntry>();
 
 const createJournalCover = (): PageImage => {
   const canvas = document.createElement("canvas");
@@ -92,13 +98,15 @@ export function PdfFlipbook({
   selection: ArchiveSelection | null;
   onClose: () => void;
 }) {
-  const [pages, setPages] = useState<PageImage[]>([]);
+  const [pages, setPages] = useState<PageSlot[]>([]);
   const [pageIndex, setPageIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [mounted, setMounted] = useState(false);
   const [cursor, setCursor] = useState({ x: 0, y: 0, visible: false });
   const bookRef = useRef<any>(null);
+  const renderSession = useRef(0);
+  const ensureWindowRef = useRef<((index: number) => void) | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -107,6 +115,8 @@ export function PdfFlipbook({
   useEffect(() => {
     if (!selection) return;
     let cancelled = false;
+    const sessionId = renderSession.current + 1;
+    renderSession.current = sessionId;
     const selectedDoc = selection;
 
     async function renderPdf() {
@@ -116,69 +126,147 @@ export function PdfFlipbook({
       setLoading(true);
 
       const cacheKey = `${selectedDoc.kind}:${selectedDoc.pdf}`;
-      const cachedPages = flipbookPageCache.get(cacheKey);
-      if (cachedPages) {
-        setPages(cachedPages);
+      const cached = flipbookPageCache.get(cacheKey);
+      if (cached?.complete) {
+        setPages([...cached.pages]);
         setLoading(false);
+        ensureWindowRef.current = null;
         return;
       }
 
-      let renderJob = flipbookRenderCache.get(cacheKey);
+      const exists = await fetch(selectedDoc.pdf, { method: "HEAD" });
+      if (!exists.ok) throw new Error("missing");
 
-      if (!renderJob) {
-        renderJob = (async () => {
-          const exists = await fetch(selectedDoc.pdf, { method: "HEAD" });
-          if (!exists.ok) throw new Error("missing");
+      const pdfjs = await import("pdfjs-dist");
+      pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.mjs", import.meta.url).toString();
+      const pdf = await pdfjs.getDocument(selectedDoc.pdf).promise;
+      const splitMagazineSpreads = selectedDoc.kind === "magazine";
+      const isJournal = selectedDoc.kind === "journal";
+      const totalSlots = splitMagazineSpreads ? pdf.numPages * 2 : pdf.numPages + (isJournal ? 1 : 0);
+      const cacheEntry: FlipbookCacheEntry = {
+        pages: Array.from({ length: totalSlots }, () => null),
+        complete: false
+      };
+      const renderingPages = new Set<number>();
+      const renderedPdfPages = new Map<number, PageImage[]>();
+      const queuedSlots = new Set<number>();
+      const pendingQueue: number[] = [];
 
-          const pdfjs = await import("pdfjs-dist");
-          pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.mjs", import.meta.url).toString();
-          const pdf = await pdfjs.getDocument(selectedDoc.pdf).promise;
-          const renderedPages: PageImage[] = [];
-          const splitMagazineSpreads = selectedDoc.kind === "magazine";
-          const isJournal = selectedDoc.kind === "journal";
-          let magazineBackCover: PageImage | null = null;
-
-          if (isJournal) renderedPages.push(createJournalCover());
-
-          for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-            const page = await pdf.getPage(pageNumber);
-            const viewport = page.getViewport({ scale: window.innerWidth < 768 ? 0.9 : 1.08 });
-            const canvas = document.createElement("canvas");
-            const context = canvas.getContext("2d", { alpha: false });
-            if (!context) continue;
-
-            canvas.width = Math.floor(viewport.width);
-            canvas.height = Math.floor(viewport.height);
-            context.fillStyle = "#f6f3ef";
-            context.fillRect(0, 0, canvas.width, canvas.height);
-            await page.render({ canvas, canvasContext: context as CanvasRenderingContext2D, viewport }).promise;
-
-            if (splitMagazineSpreads && canvas.width > canvas.height) {
-              const halves = splitSpread(canvas, pageNumber);
-              if (pageNumber === 1) {
-                renderedPages.push(halves[1]);
-                magazineBackCover = halves[0];
-              } else {
-                renderedPages.push(...halves);
-              }
-            } else {
-              renderedPages.push({ page: pageNumber, src: canvas.toDataURL("image/jpeg", 0.9), width: canvas.width, height: canvas.height });
-            }
-          }
-
-          if (magazineBackCover) renderedPages.push(magazineBackCover);
-          flipbookPageCache.set(cacheKey, renderedPages);
-          flipbookRenderCache.delete(cacheKey);
-          return renderedPages;
-        })();
-        flipbookRenderCache.set(cacheKey, renderJob);
+      if (isJournal) {
+        cacheEntry.pages[0] = createJournalCover();
       }
 
-      const renderedPages = await renderJob;
+      flipbookPageCache.set(cacheKey, cacheEntry);
+
+      const publish = () => {
+        if (cancelled || renderSession.current !== sessionId) return;
+        setPages([...cacheEntry.pages]);
+        setLoading(!cacheEntry.complete);
+      };
+
+      const renderPdfPage = async (pageNumber: number) => {
+        const cachedPage = renderedPdfPages.get(pageNumber);
+        if (cachedPage) return cachedPage;
+        if (renderingPages.has(pageNumber)) {
+          while (renderingPages.has(pageNumber) && !cancelled) {
+            await new Promise((resolve) => window.setTimeout(resolve, 40));
+          }
+          return renderedPdfPages.get(pageNumber) ?? [];
+        }
+
+        renderingPages.add(pageNumber);
+        const page = await pdf.getPage(pageNumber);
+        const viewport = page.getViewport({ scale: window.innerWidth < 768 ? 0.9 : 1.08 });
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d", { alpha: false });
+        if (!context) {
+          renderingPages.delete(pageNumber);
+          return [];
+        }
+
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        context.fillStyle = "#f6f3ef";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvas, canvasContext: context as CanvasRenderingContext2D, viewport }).promise;
+
+        const rendered = splitMagazineSpreads && canvas.width > canvas.height
+          ? splitSpread(canvas, pageNumber)
+          : [{ page: pageNumber, src: canvas.toDataURL("image/jpeg", 0.9), width: canvas.width, height: canvas.height }];
+
+        renderedPdfPages.set(pageNumber, rendered);
+        renderingPages.delete(pageNumber);
+        return rendered;
+      };
+
+      const fillSlot = async (slotIndex: number) => {
+        if (cancelled || renderSession.current !== sessionId || cacheEntry.pages[slotIndex]) return;
+
+        if (isJournal) {
+          if (slotIndex === 0) return;
+          const rendered = await renderPdfPage(slotIndex);
+          if (rendered[0]) cacheEntry.pages[slotIndex] = { ...rendered[0], page: slotIndex + 1 };
+        } else if (splitMagazineSpreads) {
+          const lastSlot = totalSlots - 1;
+          if (slotIndex === 0 || slotIndex === lastSlot) {
+            const halves = await renderPdfPage(1);
+            if (slotIndex === 0 && halves[1]) cacheEntry.pages[0] = { ...halves[1], page: 1 };
+            if (halves[0]) cacheEntry.pages[lastSlot] = { ...halves[0], page: totalSlots };
+          } else {
+            const sequence = slotIndex - 1;
+            const pdfPage = Math.floor(sequence / 2) + 2;
+            const side = sequence % 2;
+            const halves = await renderPdfPage(pdfPage);
+            if (halves[side]) cacheEntry.pages[slotIndex] = { ...halves[side], page: slotIndex + 1 };
+            if (halves[1 - side]) {
+              const adjacentSlot = side === 0 ? slotIndex + 1 : slotIndex - 1;
+              if (adjacentSlot > 0 && adjacentSlot < lastSlot) cacheEntry.pages[adjacentSlot] = { ...halves[1 - side], page: adjacentSlot + 1 };
+            }
+          }
+        } else {
+          const rendered = await renderPdfPage(slotIndex + 1);
+          if (rendered[0]) cacheEntry.pages[slotIndex] = { ...rendered[0], page: slotIndex + 1 };
+        }
+
+        cacheEntry.complete = cacheEntry.pages.every(Boolean);
+        publish();
+      };
+
+      const queueSlot = (slotIndex: number) => {
+        if (slotIndex < 0 || slotIndex >= totalSlots || cacheEntry.pages[slotIndex] || queuedSlots.has(slotIndex)) return;
+        queuedSlots.add(slotIndex);
+        pendingQueue.push(slotIndex);
+      };
+
+      const processQueue = async () => {
+        while (!cancelled && renderSession.current === sessionId && pendingQueue.length) {
+          const slotIndex = pendingQueue.shift();
+          if (slotIndex === undefined) continue;
+          queuedSlots.delete(slotIndex);
+          await fillSlot(slotIndex);
+          await new Promise((resolve) => window.setTimeout(resolve, 20));
+        }
+      };
+
+      const ensureWindow = (index: number) => {
+        [index - 1, index, index + 1, index + 2].forEach(queueSlot);
+        void processQueue();
+      };
+
+      ensureWindowRef.current = ensureWindow;
+
+      const firstSlots = Array.from(new Set([0, 1].filter((slotIndex) => slotIndex < totalSlots)));
+      for (const slotIndex of firstSlots) {
+        await fillSlot(slotIndex);
+      }
 
       if (!cancelled) {
-        setPages(renderedPages);
-        setLoading(false);
+        publish();
+        ensureWindow(0);
+        window.setTimeout(() => {
+          for (let slotIndex = 2; slotIndex < totalSlots; slotIndex += 1) queueSlot(slotIndex);
+          void processQueue();
+        }, 120);
       }
     }
 
@@ -205,7 +293,8 @@ export function PdfFlipbook({
   const size = useMemo(() => {
     const viewportWidth = typeof window === "undefined" ? 1200 : window.innerWidth;
     const viewportHeight = typeof window === "undefined" ? 800 : window.innerHeight;
-    const ratio = pages[0] ? pages[0].width / pages[0].height : 0.72;
+    const firstRenderedPage = pages.find(Boolean);
+    const ratio = firstRenderedPage ? firstRenderedPage.width / firstRenderedPage.height : 0.72;
     const height = Math.min(660, Math.max(360, viewportHeight * 0.7));
     const width = Math.min(520, Math.max(240, height * ratio, viewportWidth * 0.24));
     return { width, height };
@@ -218,6 +307,10 @@ export function PdfFlipbook({
 
   const previous = () => bookRef.current?.pageFlip()?.flipPrev();
   const next = () => bookRef.current?.pageFlip()?.flipNext();
+  const handleFlip = (event: { data: number }) => {
+    setPageIndex(event.data);
+    ensureWindowRef.current?.(event.data);
+  };
 
   return createPortal(
     <div className="flipbookOverlay text-bone" onMouseMove={moveCursor} onMouseLeave={hideCursor}>
@@ -278,11 +371,17 @@ export function PdfFlipbook({
                 swipeDistance={24}
                 showPageCorners
                 disableFlipByClick
-                onFlip={(event: { data: number }) => setPageIndex(event.data)}
+                onFlip={handleFlip}
               >
-                {pages.map((page) => (
-                  <div key={page.page} className="flipbook-page grid bg-transparent text-ink">
-                    <img src={page.src} alt={`${selection.title} page ${page.page}`} className="h-full w-full object-fill" />
+                {pages.map((page, index) => (
+                  <div key={index} className="flipbook-page grid bg-transparent text-ink">
+                    {page ? (
+                      <img src={page.src} alt={`${selection.title} page ${index + 1}`} className="h-full w-full object-fill" />
+                    ) : (
+                      <div className="flipbook-page-loading grid h-full w-full place-items-center">
+                        <span>Loading page</span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </HTMLFlipBook>
