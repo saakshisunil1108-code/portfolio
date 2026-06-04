@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { motion, useMotionValue, useSpring } from "framer-motion";
 
 function labelFor(target: HTMLElement | null) {
+  if (target?.closest(".flipbookOverlay") || document.querySelector(".flipbookOverlay")) return "";
+  if (target?.closest("#gateway")) return "HOVER OVER THE BLUE CELLS";
+  if (target?.closest("#archive")) return "CLICK TO VIEW BOOK";
   const labelled = target?.closest<HTMLElement>("[data-cursor-label]");
   if (labelled?.dataset.cursorLabel) return labelled.dataset.cursorLabel;
   if (target?.closest("iframe")) return "VIEW";

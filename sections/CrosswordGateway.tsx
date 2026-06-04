@@ -93,7 +93,7 @@ export function CrosswordGateway() {
 
   return (
     <section ref={root} id="gateway" className="paper-section-dark flex min-h-screen flex-col items-center justify-center px-4 py-24 md:px-12">
-      <p className="mb-12 text-center font-display text-[0.52rem] uppercase tracking-[0.3em] text-ink/45">
+      <p className="section-heading-label mb-12 text-center">
         Interactive Gateway
       </p>
 
@@ -151,7 +151,7 @@ export function CrosswordGateway() {
 
       <div className="mt-10 flex flex-col items-center gap-4">
         <p className={`font-display text-[0.5rem] uppercase tracking-[0.25em] text-ink/45 transition-opacity ${unlocked ? "opacity-0" : "opacity-100"}`}>
-          Move across the blue cells
+          Recommended to view in full screen
         </p>
         <button
           data-cursor-label="ENTER"

@@ -224,19 +224,27 @@ body::before {
 
 .lamp-instruction {
   position: absolute;
-  left: 44%;
-  top: calc(100% + 0.45rem);
+  left: 6%;
+  top: 20%;
   width: max-content;
-  transform: translateX(-50%);
+  transform: translateX(-62%);
   color: rgba(26, 23, 20, 0.92);
   font-family: var(--font-display), serif;
-  font-size: 0.58rem;
-  font-weight: 600;
+  font-size: 0.66rem;
+  font-weight: 700;
   letter-spacing: 0.18em;
   line-height: 1.45;
   margin-top: 0;
-  text-align: center;
+  text-align: left;
   text-transform: uppercase;
+}
+
+@media (max-width: 1180px) {
+  .lamp-instruction {
+    left: 18%;
+    top: 18%;
+    transform: translateX(0);
+  }
 }
 
 .final-collection-feature {
@@ -619,6 +627,16 @@ body::before {
 .archive-link:hover::after {
   transform: scaleX(1);
   transform-origin: left;
+}
+
+.section-heading-label {
+  color: rgba(26, 23, 20, 0.7);
+  font-family: var(--font-display), serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  line-height: 1.35;
+  text-transform: uppercase;
 }
 
 .ink-cursor-dot {

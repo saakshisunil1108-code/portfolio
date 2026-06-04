@@ -143,15 +143,9 @@ function ReadingLamp({ active, onToggle }: { active: boolean; onToggle: () => vo
         <path d="M112 108 C86 156 70 227 75 326" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1.2" />
       </svg>
       <span className="lamp-instruction">
-        {active ? (
-          "Reading Ambience On"
-        ) : (
-          <>
-            Click Lamp
-            <br />
-            For Reading Mode
-          </>
-        )}
+        Click Lamp
+        <br />
+        For Reading Mode
       </span>
     </button>
   );
@@ -251,7 +245,7 @@ export function ArchiveTable() {
     <section id="archive" ref={root} className={`archive-reading-surface paper-section flex min-h-screen flex-col items-center px-5 py-24 md:px-16 ${readingMode ? "reading-mode" : ""}`}>
       <div className="reading-mode-overlay" aria-hidden />
       <div className="mb-20 text-center">
-        <p className="mb-4 font-display text-[0.52rem] uppercase tracking-[0.3em] text-ink/45">03 - Archive Table</p>
+        <p className="section-heading-label mb-4">03 - Archive Table</p>
         <h2 className="font-editorial text-[clamp(3rem,5vw,4.5rem)] italic leading-none text-ink">Objects arranged for reading.</h2>
       </div>
 
@@ -337,7 +331,7 @@ export function ArchiveTable() {
         </div>
 
         <div className="border-l border-ink/10 pl-8 max-md:border-l-0 max-md:border-t max-md:pl-0 max-md:pt-8">
-          <div className="mb-6 border-b border-ink/10 pb-3 font-display text-[0.5rem] uppercase tracking-[0.3em] text-ink/45">Archive Index</div>
+          <div className="section-heading-label mb-6 border-b border-ink/10 pb-3">Archive Index</div>
           {[
             ["001", "Final Collection", () => open("finalCollection")],
             ["002", "Journal - Saakshi Sunil", () => open("journal")],
